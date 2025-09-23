@@ -1,5 +1,7 @@
 from src.parse_user_input import ParseInput
 from src.sql_backend import fetch_by_block, DB_PATH, fetch_by_muscles_quota
+from collections import defaultdict
+import random
 
 PUSH = {"chest", "triceps", "front delts", "side delts"}
 PULL = {"biceps", "lats", "middle_back", "lower_back", "rear delts"}
@@ -47,7 +49,7 @@ COMBO_GROUPS = {
     "arms":            ["biceps", "triceps", "forearms"],
     "chest_biceps":    ["chest", "biceps"],
     "back_triceps":    ["lats", "middle_back", "triceps"],
-    "shoulders":       ["front delts", "side delts", "rear delts", "traps"],
+    "shoulders":       ["front delts", "side delts", "rear delts"],
     "back_shoulders":  ["lats", "middle_back", "front delts", "side delts", "rear delts", "traps"],
     "legs":            ["quadriceps", "hamstrings", "glutes", "calves", "abductors", "adductors"],
     "legs_arms":       ["quadriceps", "hamstrings", "glutes", "biceps", "triceps"],
@@ -59,6 +61,16 @@ COMBO_GROUPS = {
               "forearms","quadriceps","hamstrings","glutes","calves","abductors","adductors","abdominals"],
 }
 
+MUSCLES_FOR_BLOCK = {
+    "push":  ["chest","front delts","side delts","triceps"],
+    "pull":  ["lats","middle_back","lower_back","rear delts","biceps","forearms","traps"],
+    "legs":  ["quadriceps","hamstrings","glutes","calves","abductors","adductors"],
+    "upper": ["chest","front delts","side delts","rear delts","triceps","biceps","lats","middle_back","traps","forearms"],
+    "lower": ["quadriceps","hamstrings","glutes","calves","abductors","adductors"],
+    "full":  ["chest","triceps","front delts","side delts","rear delts","biceps","lats","middle_back","lower_back",
+              "traps","forearms","quadriceps","hamstrings","glutes","calves","abductors","adductors","abdominals"],
+}
+
 MUSCLE_QUOTAS = {
     "chest": (3, 5),
     "lats": (3, 5), "middle_back": (2, 4), "lower_back": (1, 2),
@@ -66,13 +78,52 @@ MUSCLE_QUOTAS = {
 
     "biceps": (3, 4), "triceps": (3, 4),
 
-    "traps": (1, 2), "rear_delts": (1, 2), "forearms": (1, 2),
+    "traps": (1, 2), "rear delts": (1, 2), "forearms": (1, 2),
     "calves": (1, 2), "abductors": (1, 2), "adductors": (1, 2),
     "abdominals": (1, 2),
     "front delts": (2,3), "side delts": (2,3),
                                  
     "_default": (1, 2),
 }
+
+def _enforce_quotas(candidates, muscles, quotas, fill_to_max=True):
+    # bucket by muscle, de-dupe
+    by_m = defaultdict(list)
+    seen = set()
+    for ex in candidates:
+        exid = ex.get("id")
+        if exid in seen:
+            continue
+        seen.add(exid)
+        by_m[ex.get("muscle")].append(ex)
+    for m in by_m: random.shuffle(by_m[m])
+
+    picks = []
+
+    # 1) take minimums
+    for m in muscles:
+        mn, mx = quotas.get(m, quotas["_default"])
+        pool = by_m.get(m, [])
+        take = min(mn, len(pool))
+        picks.extend(pool[:take])
+        by_m[m] = pool[take:]
+
+    if not fill_to_max:
+        return picks
+
+    # 2) top up toward max
+    for m in muscles:
+        mn, mx = quotas.get(m, quotas["_default"])
+        pool = by_m.get(m, [])
+        remaining = max(0, mx - sum(1 for ex in picks if ex["muscle"] == m))
+        if remaining > 0 and pool:
+            picks.extend(pool[:remaining])
+
+    return picks
+
+def _muscles_for_split(split):
+    return MUSCLES_FOR_BLOCK.get(split) or COMBO_GROUPS.get(split, [])
+
 
 class WorkoutPlanner:
     def __init__(self, source, **overrides):
@@ -114,25 +165,30 @@ class WorkoutPlanner:
             week = week + ["rest"] * (7 - len(week))
         return week[:7]
 
-    def _fetch_for_split(self, split, equipment, difficulty, limit):
+    def _fetch_for_split(self, split, equipment, difficulty):
         if split == "rest":
             return []
 
-        if split in BLOCK_SPLITS:
-            return fetch_by_block(split, equipment, difficulty, limit, DB_PATH) or []
-
-        muscle = COMBO_GROUPS.get(split, [])
-        if not muscle:
+        muscles = _muscles_for_split(split)
+        if not muscles:
             return []
-        return fetch_by_muscles_quota(
-            muscles=muscle,
-            equipment=equipment,
-            difficulty=difficulty,
-            db_path=DB_PATH,
-            quotas=MUSCLE_QUOTAS,
-            shuffle=True
-        ) or []
-    def plan_workout(self, limit=4):
+
+        if split in BLOCK_SPLITS:
+            candidates = fetch_by_block(split, equipment, difficulty, DB_PATH) or []
+        else:
+            candidates = fetch_by_muscles_quota(
+                muscles=muscles,
+                equipment=equipment,
+                difficulty=difficulty,
+                db_path=DB_PATH,
+                quotas=MUSCLE_QUOTAS,
+                shuffle=True,
+            ) or []
+
+        return _enforce_quotas(candidates, muscles, MUSCLE_QUOTAS, fill_to_max=True)
+
+
+    def plan_workout(self):
         print("DEBUG parsed:", self.parsed)
 
         week = self._resolve_week_split()
@@ -141,7 +197,7 @@ class WorkoutPlanner:
 
         plan = []
         for day, split in enumerate(week, 1):
-            exs = self._fetch_for_split(split, equip, diff, limit)
+            exs = self._fetch_for_split(split, equip, diff)
             plan.append({"day": day, "split": split, "exercises": exs})
         return plan
 

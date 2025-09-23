@@ -65,11 +65,11 @@ def fetch_for_muscle(
         return [dict(r) for r in rows]
 
 def fetch_by_muscles_quota(
-    muscles,               # list[str]
-    equipment,             # list[str]
-    difficulty: str,       # 'beginner' | 'intermediate' | 'expert'
+    muscles,
+    equipment,
+    difficulty: str,
     db_path,
-    quotas: dict,          # {'chest': (3,5), ..., '_default': (1,2)}
+    quotas: dict,
     shuffle: bool = True
 ):
     """
@@ -77,49 +77,35 @@ def fetch_by_muscles_quota(
     Falls back to quotas['_default'] if muscle not found.
     Difficulty is preferred (requested tier first), then others.
     """
+    muscles = list(muscles or [])
     if not muscles:
         return []
 
     eq_list = equipment or ["barbell", "dumbbell", "bodyweight", "cable"]
-    diffs   = _diff_allowed(difficulty)
+    diffs   = _diff_allowed(difficulty)  # e.g. ["intermediate","beginner","expert"]
 
-    placeholders_eq   = ",".join("?" * len(eq_list))
-    placeholders_diff = ",".join("?" * len(diffs))
+    # --- Build placeholders ---
+    placeholders_muscles = ",".join("?" * len(muscles))
+    placeholders_eq      = ",".join("?" * len(eq_list))
+    placeholders_diff    = ",".join("?" * len(diffs))
 
+    # --- SQL (no LIMIT ?) ---
     sql = f"""
         SELECT e.id, e.name, e.muscle, e.equipment, e.difficulty
         FROM exercise e
-        WHERE e.muscle = ?
+        WHERE e.muscle IN ({placeholders_muscles})
           AND e.equipment IN ({placeholders_eq})
           AND e.difficulty IN ({placeholders_diff})
-        ORDER BY
-          CASE e.difficulty
-            WHEN ? THEN 1
-            WHEN 'expert' THEN 2
-            WHEN 'intermediate' THEN 3
-            WHEN 'beginner' THEN 4
-            ELSE 999
-          END,
-          RANDOM()
-        LIMIT ?
-    """
+        {"ORDER BY RANDOM()" if shuffle else ""}
+        """
 
-    out = []
-    with connect(db_path) as con:
+    params = list(muscles) + list(eq_list) + list(diffs)
+
+    with sqlite3.connect(db_path) as con:
         con.row_factory = sqlite3.Row
-        for m in muscles:
-            min_per, max_per = quotas.get(m, quotas.get("_default", (1, 2)))
-            want = max(0, min_per if max_per <= min_per else random.randint(min_per, max_per))
-            if want <= 0:
-                continue
+        rows = con.execute(sql, params).fetchall()
 
-            params = [m] + list(eq_list) + list(diffs) + [difficulty] + [want]
-            rows = con.execute(sql, params).fetchall()
-            out.extend(dict(r) for r in rows[:want])
-
-    if shuffle:
-        random.shuffle(out)
-    return out
+    return [dict(r) for r in rows]
 
 def fetch_by_muscles_balanced(
     muscles,
@@ -139,7 +125,7 @@ def fetch_by_muscles_balanced(
         out.extend(rows[:want])
     return out
 
-def _query_exercises(where_sql, where_params, equipment, difficulty, limit, db_path):
+def _query_exercises(where_sql, where_params, equipment, difficulty, db_path):
     eq_list = equipment or ["barbell", "dumbbell", "bodyweight", "cable"]
     diffs = _diff_allowed(difficulty)
 
@@ -153,18 +139,17 @@ def _query_exercises(where_sql, where_params, equipment, difficulty, limit, db_p
            AND e.equipment IN ({placeholders_eq})
            AND e.difficulty IN ({placeholders_diff})
            ORDER BY RANDOM()
-           LIMIT ?
        """
 
-    params = where_params + eq_list + list(diffs) + [limit]
+    params = where_params + eq_list + list(diffs)
     with connect(db_path) as con:
         rows = con.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
-def fetch_by_block(block, equipment, difficulty, limit, db_path):
+def fetch_by_block(block, equipment, difficulty, db_path):
     if block not in SPLIT_FLAGS:
         raise ValueError(f"Invalid block: {block}")
 
     where_sql = "JOIN exercise_splits s ON s.exercise_id = e.id WHERE s.split = ?"
     where_params = [block]
-    return _query_exercises(where_sql, where_params, equipment, difficulty, limit, db_path)
+    return _query_exercises(where_sql, where_params, equipment, difficulty, db_path)
