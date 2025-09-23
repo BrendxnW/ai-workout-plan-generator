@@ -18,7 +18,7 @@ _CANON = {
     'arm': 'arms', 'arms': 'arms',
     'bicep': 'biceps', 'biceps': 'biceps',
     'tricep': 'triceps', 'triceps': 'triceps',
-    'shoulder': 'shoulders', 'shoulders': 'shoulders',
+    'shoulder': 'shoulders', 'shoulders': ['front delts', 'side delts', 'rear delts'],
     'abdominal': 'abs', 'abdominals': 'abs', 'abs': 'abs'
 }
 
@@ -119,14 +119,3 @@ class ParseInput:
                  }
         return final
 
-
-if __name__ == "__main__":
-
-    test = "Can you create me a leg day expert workout."
-    test2 = "Can you create me a 4 day workout for expert and i can't workout on tuesday?"
-    test3 = "Can you create me a arm day beginner workout but I only have dumbbells"
-
-    UI = ParseInput(test2)
-
-    finalize = UI.parse()
-    print(finalize)

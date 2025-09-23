@@ -52,5 +52,9 @@ def generate():
         user_text=user_text
     )
 
+'''@app.route("/edit", method=["POST"])
+def edit():
+    ...'''
+
 if __name__ == "__main__":
     app.run(debug=True)

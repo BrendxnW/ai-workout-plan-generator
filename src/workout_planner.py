@@ -1,8 +1,8 @@
 from src.parse_user_input import ParseInput
 from src.sql_backend import fetch_by_block, DB_PATH, fetch_by_muscles_quota
 
-PUSH = {"chest", "triceps", "shoulders"}
-PULL = {"biceps", "lats", "middle_back", "lower_back"}
+PUSH = {"chest", "triceps", "front delts", "side delts"}
+PULL = {"biceps", "lats", "middle_back", "lower_back", "rear delts"}
 LEGS = {"quadriceps", "hamstrings", "glutes", "calves", "abductors", "adductors"}
 CORE = {"abdominals", "lower_back"}
 BLOCK_SPLITS = {"push", "pull", "legs", "upper", "lower", "full"}
@@ -38,23 +38,24 @@ DEFAULT_SPLITS = {
 
 COMBO_GROUPS = {
     "chest_triceps":   ["chest", "triceps"],
+    "back_arms":       ["lats", "middle_back", "lower_back", "biceps", "triceps"],
     "back_biceps":     ["lats", "middle_back", "lower_back", "traps", "biceps", "forearms"],
-    "legs_shoulders":  ["quadriceps", "hamstrings", "glutes", "calves", "shoulders"],
-    "chest_shoulders": ["chest", "shoulders", "triceps"],
+    "legs_shoulders":  ["quadriceps", "hamstrings", "glutes", "calves", "front delts", "side delts", "rear delts"],
+    "chest_shoulders": ["chest", "front delts", "side delts", "rear delts", "triceps"],
     "back_traps":      ["lats", "middle_back", "lower_back", "traps"],
-    "back_rear_delts": ["lats", "middle_back", "lower_back", "rear_delts", "traps"],
+    "back_rear_delts": ["lats", "middle_back", "lower_back", "rear delts", "traps"],
     "arms":            ["biceps", "triceps", "forearms"],
     "chest_biceps":    ["chest", "biceps"],
     "back_triceps":    ["lats", "middle_back", "triceps"],
-    "shoulders":       ["shoulders", "traps", "rear_delts"],
-    "back_shoulders":  ["lats", "middle_back", "shoulders", "traps"],
+    "shoulders":       ["front delts", "side delts", "rear delts", "traps"],
+    "back_shoulders":  ["lats", "middle_back", "front delts", "side delts", "rear delts", "traps"],
     "legs":            ["quadriceps", "hamstrings", "glutes", "calves", "abductors", "adductors"],
     "legs_arms":       ["quadriceps", "hamstrings", "glutes", "biceps", "triceps"],
-    "upper": ["chest","shoulders","triceps","biceps","lats","middle_back","traps","forearms"],
+    "upper": ["chest","front delts", "side delts", "rear delts","triceps","biceps","lats","middle_back","traps","forearms"],
     "lower": ["quadriceps","hamstrings","glutes","calves","abductors","adductors"],
-    "push":  ["chest","shoulders","triceps"],
+    "push":  ["chest","front delts", "side delts","triceps"],
     "pull":  ["lats","middle_back","lower_back","biceps","traps","forearms"],
-    "full":  ["chest","triceps","shoulders","biceps","lats","middle_back","lower_back","traps",
+    "full":  ["chest","triceps","front delts", "side delts", "rear delts","biceps","lats","middle_back","lower_back","traps",
               "forearms","quadriceps","hamstrings","glutes","calves","abductors","adductors","abdominals"],
 }
 
@@ -63,12 +64,13 @@ MUSCLE_QUOTAS = {
     "lats": (3, 5), "middle_back": (2, 4), "lower_back": (1, 2),
     "quadriceps": (3, 5), "hamstrings": (3, 5), "glutes": (2, 4),
 
-    "shoulders": (4, 5), "biceps": (3, 4), "triceps": (3, 4),
+    "biceps": (3, 4), "triceps": (3, 4),
 
     "traps": (1, 2), "rear_delts": (1, 2), "forearms": (1, 2),
-    "calves": (1, 2), "abductors": (0, 1), "adductors": (0, 1),
+    "calves": (1, 2), "abductors": (1, 2), "adductors": (1, 2),
     "abdominals": (1, 2),
-
+    "front delts": (2,3), "side delts": (2,3),
+                                 
     "_default": (1, 2),
 }
 
@@ -143,9 +145,3 @@ class WorkoutPlanner:
             plan.append({"day": day, "split": split, "exercises": exs})
         return plan
 
-
-if __name__ == "__main__":
-    print(ParseInput("can you make me a 5 day expert workout").parse())
-
-    WP = WorkoutPlanner("can you make me a 5 day expert workout")
-    print(WP.plan_workout())
