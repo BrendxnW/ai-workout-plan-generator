@@ -87,7 +87,6 @@ MUSCLE_QUOTAS = {
 }
 
 def _enforce_quotas(candidates, muscles, quotas, fill_to_max=True):
-    # bucket by muscle, de-dupe
     by_m = defaultdict(list)
     seen = set()
     for ex in candidates:
@@ -100,7 +99,6 @@ def _enforce_quotas(candidates, muscles, quotas, fill_to_max=True):
 
     picks = []
 
-    # 1) take minimums
     for m in muscles:
         mn, mx = quotas.get(m, quotas["_default"])
         pool = by_m.get(m, [])
@@ -111,7 +109,6 @@ def _enforce_quotas(candidates, muscles, quotas, fill_to_max=True):
     if not fill_to_max:
         return picks
 
-    # 2) top up toward max
     for m in muscles:
         mn, mx = quotas.get(m, quotas["_default"])
         pool = by_m.get(m, [])
@@ -131,6 +128,11 @@ class WorkoutPlanner:
         for k, v in (overrides or {}).items():
             if v not in (None, "", []):
                 parsed[k] = v
+
+        if parsed["equipment"] == ["bodyweight"]:
+            parsed["equipment"] += ["barbell", "dumbbell", "cable"]
+        if not parsed.get("num_days") and not parsed.get("days") and parsed.get("explicit_splits"):
+            parsed["days"] = len(parsed["explicit_splits"]) or 1
 
         days_raw = parsed.get("num_days") or parsed.get("days") or 3
         try:
@@ -169,8 +171,20 @@ class WorkoutPlanner:
         if split == "rest":
             return []
 
+        canon_map = {
+            "leg": "legs",
+            "shoulder": "shoulders",
+            "arm": "arms",
+            "bicep": "biceps",
+            "tricep": "triceps",
+            "ab": "abs",
+        }
+        split = canon_map.get(split.strip().lower(), split.strip().lower())
+
         muscles = _muscles_for_split(split)
+        print(f"DEBUG fetching for '{split}' — muscles: {muscles}")
         if not muscles:
+            print(f"No muscles found for split '{split}'")
             return []
 
         if split in BLOCK_SPLITS:

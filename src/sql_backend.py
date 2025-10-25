@@ -65,38 +65,31 @@ def fetch_for_muscle(
         return [dict(r) for r in rows]
 
 def fetch_by_muscles_quota(
-    muscles,
-    equipment,
-    difficulty: str,
-    db_path,
-    quotas: dict,
-    shuffle: bool = True
+        muscles,
+        equipment,
+        difficulty: str,
+        db_path,
+        quotas: dict,
+        shuffle: bool = True
 ):
-    """
-    For each muscle in order, pull min..max per quotas[m].
-    Falls back to quotas['_default'] if muscle not found.
-    Difficulty is preferred (requested tier first), then others.
-    """
     muscles = list(muscles or [])
     if not muscles:
         return []
 
     eq_list = equipment or ["barbell", "dumbbell", "bodyweight", "cable"]
-    diffs   = _diff_allowed(difficulty)  # e.g. ["intermediate","beginner","expert"]
+    diffs = _diff_allowed(difficulty)
 
-    # --- Build placeholders ---
     placeholders_muscles = ",".join("?" * len(muscles))
-    placeholders_eq      = ",".join("?" * len(eq_list))
-    placeholders_diff    = ",".join("?" * len(diffs))
+    placeholders_eq = ",".join("?" * len(eq_list))
+    placeholders_diff = ",".join("?" * len(diffs))
 
-    # --- SQL (no LIMIT ?) ---
     sql = f"""
-        SELECT e.id, e.name, e.muscle, e.equipment, e.difficulty
-        FROM exercise e
-        WHERE e.muscle IN ({placeholders_muscles})
-          AND e.equipment IN ({placeholders_eq})
-          AND e.difficulty IN ({placeholders_diff})
-        {"ORDER BY RANDOM()" if shuffle else ""}
+            SELECT e.id, e.name, e.muscle, e.equipment, e.difficulty
+            FROM exercise e
+            WHERE e.muscle IN ({placeholders_muscles})
+              AND e.equipment IN ({placeholders_eq})
+              AND e.difficulty IN ({placeholders_diff})
+            {"ORDER BY RANDOM()" if shuffle else ""}
         """
 
     params = list(muscles) + list(eq_list) + list(diffs)
@@ -104,6 +97,22 @@ def fetch_by_muscles_quota(
     with sqlite3.connect(db_path) as con:
         con.row_factory = sqlite3.Row
         rows = con.execute(sql, params).fetchall()
+
+        # fallback: widen equipment if 0 results
+        if not rows:
+            print(f"⚠️ No matches for {muscles} with {equipment}, retrying with all equipment types.")
+            eq_all = ["barbell", "dumbbell", "bodyweight", "cable"]
+            placeholders_eq2 = ",".join("?" * len(eq_all))
+            sql_fallback = f"""
+                    SELECT e.id, e.name, e.muscle, e.equipment, e.difficulty
+                    FROM exercise e
+                    WHERE e.muscle IN ({placeholders_muscles})
+                      AND e.equipment IN ({placeholders_eq2})
+                      AND e.difficulty IN ({placeholders_diff})
+                    {"ORDER BY RANDOM()" if shuffle else ""}
+                """
+            params2 = list(muscles) + eq_all + list(diffs)
+            rows = con.execute(sql_fallback, params2).fetchall()
 
     return [dict(r) for r in rows]
 

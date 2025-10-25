@@ -1,5 +1,4 @@
 from transformers import pipeline
-import torch
 import re
 
 
@@ -65,8 +64,29 @@ class ParseInput:
         if explicit:
             return [explicit[i % len(explicit)] for i in range(num_days)]
 
-        return []
+        t = self.text
+        if "leg" in t:
+            return ["legs"]
+        if "push" in t:
+            return ["push"]
+        if "pull" in t:
+            return ["pull"]
+        if "shoulder" in t:
+            return ["shoulders"]
+        if "back" in t:
+            return ["back"]
+        if "chest" in t:
+            return ["chest"]
+        if "arm" in t:
+            return ["arms"]
+        if "bicep" in t:
+            return ["biceps"]
+        if "tricep" in t:
+            return ["triceps"]
+        if "abs" in t or "core" in t:
+            return ["core"]
 
+        return []
 
     def classify_difficulty(self):
         d = self.text
