@@ -6,8 +6,12 @@ But I can't work out on Tuesdays), and the program will parse their input and bu
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white" />
-  <img src="https://img.shields.io/badge/Status-Educational-green" />
+  <a href="https://www.python.org/downloads/release/python-3120/">
+    <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-green" />
+  </a>
 </p>
 
 ## Table of Contents
@@ -19,7 +23,6 @@ But I can't work out on Tuesdays), and the program will parse their input and bu
 - [Install](#install)
 - [Usage](#usage)
 - [API](#api)
-- [Contributing](#contributing)
 - [License](#license)
 
 
@@ -84,12 +87,6 @@ ParseInput(user_input)
 ```
 
 
-## Contributing
-
-Contributions are welcome!
-1. Fork the repo
-2. Create a feature branch
-3. Submit a PR with a clear description
-
 ## License
 [MIT © Richard McRichface.](./LICENSE)
+
